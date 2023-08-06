@@ -112,12 +112,12 @@ if uploaded_file:
     if api_key:
         openai.api_key = api_key
         os.environ["OPENAI_API_KEY"] = api_key
-        # Get embedding model
+
         embeddings = OpenAIEmbeddings()
         db = FAISS.from_documents(chunks, embeddings)
     
     else:
-        st.info("Please add your OpenAI API key to continue.")
+        st.info("Please add your OpenAI API key to continue." )
 
 
 

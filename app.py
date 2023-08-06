@@ -1,187 +1,217 @@
-from PIL import Image
-import requests
-from io import BytesIO
 import openai
 import streamlit as st
-import utils as utl
 import os
+import utils as utl
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import OpenAI
 from langchain.chains import ConversationalRetrievalChain
+from langchain.chains.question_answering import load_qa_chain
 from youtube_transcript import YT_transcript
 from chunk import chunking
 import moviepy.editor as mp
-from moviepy import video as mp2
-import whisper
-import os
 import tempfile
-from io import BytesIO
-import shutil
-#from pydub import AudioSegment
-image_path = "meetai.png"
-def resize_image(image_url, width):
-    response = requests.get(image_url)
-    image = Image.open(BytesIO(response.content))
-    image = image.resipze((width, int(image.size[1] * (width / image.size[0]))))
-    return image
+import whisper
+from moviepy.editor import VideoFileClip
+
+IFRAME = '<iframe src="https://ghbtns.com/github-btn.html?user=KaziArman&repo=ask-youtube&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>'
+
 ss = st.session_state
 st.set_page_config(
-	#page_icon="https://i.pinimg.com/originals/4b/85/c9/4b85c95c93eff810b0fe0a755be081a6.png",
-	page_icon="meetai.png",
+	page_icon="https://i.pinimg.com/originals/4b/85/c9/4b85c95c93eff810b0fe0a755be081a6.png",
+	#page_icon="web.png",
 	layout="wide",
-	page_title='MeetAi!',
+	page_title='Ask Youtube',
 	initial_sidebar_state="expanded"
 )
-image_url = "https://i.imgur.com/c6vFnyp.png"
-image_width = 200 # Set the desired width of the image
-# resized_image = resize_image("meetai.png", image_width)
-st.markdown('<div class="right">', unsafe_allow_html=True)
-st.image("meetai.png", caption="Simplify Meetings, Empower Answers: MeetAI!")
 
-
-
-
-st.markdown(f'<div class="header"><figure><figcaption><h1>Welcome to MeetAI</h1></figcaption></figure><h3>MeetAi is a conversional AI based tool, where you can ask about any recorded video and it will answer.</h3></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="header"><figure style="background-color: #FFFFFF;"><img src="https://i.pinimg.com/originals/41/f6/4d/41f64d3b4b21cb08eb005b11016bf707.png" width="400" style="display: block; margin: 0 auto; background-color: #FFFFFF;"><figcaption></figcaption></figure><h4 style="text-align: center"> Ask Youtube is a conversional AI based tool, where you can ask about any youtube video and it will answer  {IFRAME}</h4></div>', unsafe_allow_html=True)
 #st.markdown(f'<div class="header"><figure><img src="logo.png" width="500"><figcaption><h1>Welcome to Ask Youtube</h1></figcaption></figure><h3>Ask Youtube is a conversional AI based tool, where you can ask about any youtube video and it will answer.</h3></div>', unsafe_allow_html=True)
 
-with st.expander("How to use MeetAI 🤖", expanded=False):
-
+with st.expander("How to use Ask Youtube 🤖", expanded=False):
 	st.markdown(
 		"""
-		Please refer to [our dedicated guide](https://www.impression.co.uk/resources/tools/oapy/) on how to use MeetAI.
+		Please refer to [our dedicated guide](https://www.impression.co.uk/resources/tools/oapy/) on how to use Ask Youtube.
 		"""
     )
 
-with st.expander("Credits 🏆", expanded=True):
-
+with st.sidebar.expander("Credits 🏆", expanded=True):
 	st.markdown(
-		"""
-		MeetAI was created by [Kazi Arman Ahmed](https://www.linkedin.com/in/r4h4t/) and [Md Shamim Hasan](https://www.linkedin.com/in/md-shamim-hasan/)  at [LandQuire](https://www.linkedin.com/company/landquire/) in Bangladesh.
+		"""Ask Youtube was created by [Kazi Arman Ahmed](https://www.linkedin.com/in/r4h4t/) and [Md Shamim Hasan](https://www.linkedin.com/in/md-shamim-hasan/)  at [LandQuire](https://www.linkedin.com/company/landquire/) in Bangladesh 
 	    """
     )
-
-#st.markdown("---")
-# Load your API key
-api_key = st.text_input('Enter your API key')
-# print(api_key)
-openai.api_key = api_key
-os.environ["OPENAI_API_KEY"] = api_key
+def on_btn_click():
+    del st.session_state["messages"] 
+    st.session_state["messages"] = [{"role": "assistant", "content": "Hi, I am an AI bot created by LandQuire Data Team\nHow can I help you regarding this YouTube video?"}]
 
 
-video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
-if video_file is not None:
-    # Process the uploaded video file (you can add your processing code here)
-    # st.video(video_file)
-    temp_dir = tempfile.TemporaryDirectory()
-    temp_file_path = os.path.join(temp_dir.name, "temp_video.mp4")
-    with open(temp_file_path, "wb") as temp_file:
-        temp_file.write(video_file.read())
-    video=mp.VideoFileClip(temp_file_path)
-    success_message = st.empty()
-    success_message.success("Processing audio.......")
-    aud=video.audio.write_audiofile("demo.mp3")
-    model=whisper.load_model("base")
-    result=model.transcribe("audio_out.mp3")
+api_key = st.sidebar.text_input('Enter your API key')
 
-# a_file=st.audio("demo.mp3", format="audio/mp3")
-    # Audio=mp.AudioFileClip("demo.mp3")
-    # model=whisper.load_model("base")
-    # result=model.transcribe(Audio)
-# if a_file is not None:
-# 	temp_dir1=tempfile.TemporaryDirectory()
-# 	temp_file_path1 = os.path.join(temp_dir1.name, "temp_audio.mp3")
-    # with open(temp_file_path1, "wb") as temp_file1:
-    #     temp_file1.write(a_file.read())
 
-	# audio_p=mp.AudioFileClip(temp_file_path1)
-	# model=whisper.load_model("base")
-	# result=model.transcribe(temp_file_path1)
+
+def convert_video_to_audio(input_video_path, output_audio_path):
+    try:
+        # Load the video file
+        video_clip = VideoFileClip(input_video_path)
+
+        # Extract audio from the video clip
+        audio_clip = video_clip.audio
+
+        # Save the audio to the specified output path
+        audio_clip.write_audiofile(output_audio_path)
+
+        # Close the video and audio clips
+        video_clip.close()
+        audio_clip.close()
+
+        st.success("Conversion complete. Audio file saved at: " + output_audio_path)
+    except Exception as e:
+        st.error("Error occurred: " + str(e))
+
+
+
+
+uploaded_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
+if uploaded_file:
+    # temp_dir = tempfile.TemporaryDirectory()
+    # temp_file_path = os.path.join(temp_dir.name, "temp_video.mp4")
+    try:
+        with open("temp_video.mp4", "wb") as f:
+            f.write(uploaded_file.read())
+        output_audio_file = "output_audio.mp3"
+        convert_video_to_audio("temp_video.mp4", output_audio_file)
+        os.remove("temp_video.mp4")
+        uploaded_file=st.empty()
+    except:
+        output_audio_file = "output_audio.mp3"
     
-    # with open("transcription.text",'w') as f:
-    #     f.write(result['text'])
-    # mp3_file_path=os.path.join(temp_dir.name,'output_audio.mp3')
-    # audio.export(mp3_file_path,format='mp3')
-    # st.success("Video successfully converted to mp3!")
-    # st.audio(mp3_file_path)
-    # temp_dir.cleanup()
+    # video=mp.VideoFileClip(video_file)
+    # success_message = st.empty()
+    # success_message.success("Processing audio.......")
+    # aud=video_file.audio.write_audiofile("demo180.mp3")
+    model=whisper.load_model("base")
+    result=model.transcribe(output_audio_file)
+    success_message = st.empty()
+    # print(result)
+    success_message.success("Audio Processing Done")
+    
 
-    # video = mp.VideoFileClip(video_file)
-    # audio = video.audio
-    # mp3_file_path = "output_audio.mp3"
-    # audio.export(mp3_file_path, format="mp3")
-    # st.success("Video successfully converted to MP3!")
-    # st.audio(mp3_file_path)
-    # aud=video.audio
-    # with st.spinner("Processing audio..."):
-    #     aud.export("demo.mp3", format="mp3")
-    #     st.success("Audio processing complete!")
-	
 
-# Process the audio data and write it to an audio file
+    text = """\n\n\nPlease briefly summarize the video transcription mentioned above. Now make it in 2-3 concise paragraphs.
+            First, analyze the video line-by-line, distilling each line into a simple summary sentence.
+            Then combine these sentence summaries into a long summary covering all the points. 
+            Please make sure to accurately capture the essence and meaning of the video content.
+            I will ask some questions about the video - please answer them with relevant details from the video transcriuption.
+            Aim for answers that are around 50 lines long.
+            The goal is for your summary to allow me to get all the information from the video without watching it, and have enough detail to answer specific questions"""
 
-# Load your Youtube Video Link
-# youtube_link = st.text_input('Enter your YouTube video link')
+    transcript = result['text'] + text
+    print(transcript)
+    chnk = chunking(transcript)
+    chunks = chnk.yt_data()
+    if api_key:
+        openai.api_key = api_key
+        os.environ["OPENAI_API_KEY"] = api_key
+        # Get embedding model
+        embeddings = OpenAIEmbeddings()
+        db = FAISS.from_documents(chunks, embeddings)
+    
+    else:
+        st.info("Please add your OpenAI API key to continue.")
+
+
 
 temp_slider = st.sidebar.slider('Set the temperature of the completion. Higher values make the output more random,  lower values make it more focused.', 0.0, 1.0, 0.7)
-def ui_question():
-	st.write('### Ask Questions')
-	disabled = False
-	st.text_area('question', key='question', height=100, placeholder='Enter question here', help='', label_visibility="collapsed", disabled=disabled)
-ui_question()
+st.sidebar.button("Clear messages", use_container_width=True,on_click=on_btn_click)
+summarize = st.sidebar.button("Summarize", use_container_width=True)
+chatgpt = st.sidebar.checkbox('Use ChatGPT', False,
+			help='Allow the bot to collect answers to any specific questions from outside of the video content')
 
-def output_add(q,a):
-	if 'output' not in ss: ss['output'] = ''
-	q = q.replace('$',r'\$')
-	a = a.replace('$',r'\$')
-	new = f'#### {q}\n{a}\n\n'
-	ss['output'] = new + ss['output']
-	st.markdown(new)
-generate = st.button('Generate!')
-def ui_output():
-	output = ss.get('output','')
-	st.markdown(output)
-ui_output()
-if generate:
-	with st.spinner('Classifying...'):
-		openai.api_key = api_key
-		os.environ["OPENAI_API_KEY"] = api_key
-		file_path = next(iter(video_file))
-		video=moviepy.editor.VideoFileClip(file_path)
-		aud=video.audio
-		
-  
-  
-		yt_script = YT_transcript(youtube_link)
-		transcript = yt_script.script()
-		text = "\n\n\nI have given you the caption of a Youtube video. " \
-			   "I will ask you specific question about this video. " \
-			   "You have to understand the theme of the video and" \
-			   " answer me very precisely according to the questions"
-		transcript = transcript+text
-		chnk = chunking(transcript)
-		chunks = chnk.yt_data()
-		# print(chunks)
-		# Get embedding model
-		embeddings = OpenAIEmbeddings()
-		# Create vector database
-		chat_history=[]
-		question = ss.get('question', '')
-		temperature = ss.get('temperature', 0.0)
-		temperature = temp_slider
-		model = OpenAI(model="text-davinci-003", temperature=temp_slider)
-		db = FAISS.from_documents(chunks, embeddings)
-		qa = ConversationalRetrievalChain.from_llm(model, db.as_retriever())
-	result = qa({"question": question, "chat_history": chat_history})
-	chat_history.append((question, result['answer']))
-	# print("\n\n\n\n")
-	# print(chat_history)
-	q = question.strip()
-	a = result['answer'].strip()
-	ss['answer'] = a
-	output_add(q,a)
 
-# Loading CSS
-utl.local_css("frontend.css")
-utl.remote_css('https://fonts.googleapis.com/icon?family=Material+Icons')
-utl.remote_css('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;600;700&display=swap')
+
+st.write('### Ask Questions')
+chat = st.chat_input()
+
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [{"role": "assistant", "content": "Hi, I am an AI bot created by LandQuire Data Team\nHow can I help you regarding this YouTube video?"}]
+
+for msg in st.session_state.messages:
+    st.chat_message(msg["role"]).write(msg["content"])
+
+
+if chatgpt:
+
+    if prompt := chat:
+        if not api_key:
+            st.info("Please add your OpenAI API key to continue.")
+            st.stop()
+        openai.api_key = api_key
+        prompt = f'##### {prompt}'
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.chat_message("user").write(prompt)
+
+        temp = temp_slider
+        response = openai.ChatCompletion.create(model="gpt-3.5-turbo",temperature=temp, messages=st.session_state.messages)
+        msg = response.choices[0].message
+        st.session_state.messages.append(msg)
+        st.chat_message("assistant").write(msg.content)
+
+
+else:
+    if summarize:
+        if not api_key:
+            st.info("Please add your OpenAI API key to continue.")
+            st.stop()
+        data = db
+        prompt1 = "Please summarize this YouTube video briefly. Your summary should be brief enough that I don't need to watch the video to understand the key points. Include the most important details and topics covered in the video by accurately extracting the core essence and main ideas from the content. Make sure to cover all the key points mentioned without leaving any major details out. The objective is to provide a details at least 3 paragrapghs and comprehensive text summary so I can get all the key information from the video without having to view it."
+        prompt3 ='First, divide the entire video transcription into three parts based on duration. Then, begin by describing the content of the first part according to the dividation. Your response should be accurate, and contain at least 50 words or 5 sentences.'
+        prompt4 ='Now, begin by describing the content of the second part according to the previous dividation. Your response should be accurate, and contain at least 50 words or 5 sentences.'
+        prompt5 = 'Now, begin by describing the content of the third part according to the previous dividation. Your response should be accurate, and contain at least 50 words or 5 sentences.'
+        prompt6 = 'Now, provide a summary of the entire video  while ensuring all the topics covered are included.Your response should be accurate, and contain at least 100 words or 10 sentences.'
+        prompt2 = "Summarize the video"
+        openai.api_key = api_key
+        prompt = f'##### {prompt3}'
+        st.session_state.messages.append({"role": "user", "content": prompt2})
+        st.chat_message("user").write(prompt2)
+        out = ""
+        ll = [prompt3,prompt4,prompt5,prompt6]
+        for i in ll:
+            pp = i
+            print(pp)
+            temp = temp_slider
+            model = OpenAI(model="text-davinci-003", temperature=temp)
+            chain = load_qa_chain(model, chain_type="stuff")  # chain_type="stuff"
+            docs = data.similarity_search(pp)
+            res = chain.run(input_documents=docs, question=pp, messages=st.session_state.messages)
+            #print(res)
+            out = out+"\n\n"+res
+            #print(type(res))
+            print(out)
+        st.session_state.messages.append({"role": "assistant", "content": out})
+        st.chat_message("assistant").write(out)
+
+    if prompt := chat:
+        if not api_key:
+            st.info("Please add your OpenAI API key to continue. ")
+            st.stop()
+        data = db
+
+        openai.api_key = api_key
+        prompt = f'##### {prompt}'
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.chat_message("user").write(prompt)
+
+        temp = temp_slider
+        model = OpenAI(model="text-davinci-003", temperature=temp)
+        chain = load_qa_chain(model, chain_type="stuff") #chain_type="stuff"
+        docs = data.similarity_search(prompt)
+        res = chain.run(input_documents=docs, question=prompt, messages=st.session_state.messages)
+        st.session_state.messages.append({"role": "assistant", "content": res})
+        st.chat_message("assistant").write(res)
+
+
+
+
+
+
